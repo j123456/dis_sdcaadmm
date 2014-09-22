@@ -1,0 +1,129 @@
+This software trains linear SVM in distributed systems (more than one machine). For techincal details, see the following paper:
+
+Caoxie Zhang, Honglak Lee and Kang G Shin, 
+Efficient Distributed Linear Classification Algorithms via the Alternating Direction Method of Multipliers, AISTAT 2012.
+
+The software uses the alternating
+direction method of multipliers (ADMM) for distribute convex optimization, and dual coordinate descent/trusted Newton for solving the subproblem of ADMM. 
+
+Current implementations support L2-regularized L1- and L2-
+loss support vector machines, and
+One-versus-the-rest multi-class classification.
+
+
+
+Requirement
+==========================================
+
+(0) Unix environment with machines connected.
+
+(1)  The software uses a master-slave mode for communication. You have to assign a machine as master, and other machine as slaves. 
+       (1.1)  Make sure the master can ssh to other machine without a password (using public key authentication). 
+       (1.2) Make sure you can establish TCP connections between master and slaves. E.g., use the nc command.
+
+(2) OpenMPI is set up.
+       (2.0) The software uses OpenMPI for communications. You have to install OpenMPI.
+       (2.1)  You must have an OpenMPI host file in each machine so that OpenMPI can use this information to communiate.  
+       An example OpenMPI host file will look like this, say it is saved as ~/.mpihost:
+       
+       ###########Start of the hostfile for OpenMPI####################
+       
+       #  Note that you have to specify the host names, and the number of the hosts.
+        # This is the master node
+        node0 slots=1
+        # The following slave nodes uses one core:
+        node1 slots=1
+        node2 slots=1
+        node3 slots=1
+        node4 slots=1
+        node5 slots=1
+        node6 slots=1
+        node7 slots=1
+        ###########End of the hostfile for OpenMPI####################
+        
+        
+        Make sure you can run a helloworld program in your cluster.
+        
+(3) 
+      
+
+Installation and Usage
+==========================================
+
+To install, execute make in the Shell.
+
+(0) Data format/model
+
+The input data for training is stored in a single file, same as test file. 
+Training file (say train.dat) and test file (say test.dat) should be in LIBSVM format.
+
+(1) Split and spread the data
+
+There is a script split-spead.py to help you split the data file and spread them to all machines. Execute:
+
+python split-spread.py ~/.mpihostfile train.dat
+python split-spread.py ~/.mpihostfile test.dat
+
+Now,  two directories are created: "train.dat.8" and "test.dat.8"
+
+(2) Training
+
+Execute (note that all path  should be absolute): 
+
+mpirun  --hostfile [MPI host file] -np [number of nodes] parallel-train [Options] training_set_direcoty [model_file] 
+
+Notice:
+    (2.1) If your machine has multiple network interface, it's better to add
+     "--mca btl_tcp_if_include eth1"
+    in the arguments of mpirun. eth1 is an exmaple of the network interface that you wish the machines to talk through.
+    (2.2) You can run parallel-train to see all the available options.
+            
+
+Examples:
+    (2.3)
+    mpirun  --hostfile ~/.mpihost -np 8 parallel-train -s 1 train.dat.8
+
+    This will run the parallel training on 8 nodes using dual coordinate descent for solving the subproblem. All options are by defults. A model file name: train.8.model will be created, which will be used for testing. 
+            
+    (2.4)
+    mpirun  --hostfile ~/.mpihost -np 8  parallel-train -M 1 -x 1 -n 1 -p 1  train.dat.8
+    
+    This option setting is more aggressive and usually more efficient. It goes through the data once when solving the subproblem, and uses relaxation in the ADMM and normalization. It also shows the primal value and training accuracy every ADMM iteration.
+    
+    (2.5)
+    mpirun  --hostfile ~/.mpihost -np 8  parallel-train -i model.interm  train.dat.8
+    
+    This option will write the intermidiate results of the ADMM iterations to the file model.interm, and the intermidiate results can be used for the parallel-prediction.
+    
+    (2.6)
+    mpirun  --hostfile ~/.mpihost -np 8  parallel-train -v 5  -c 10 train.dat.8
+    
+    This will perform five-fold cross-validation under the C parameter 10, and output the validation accuracy.
+    
+    (2.7)
+    
+    Note for multi-class classification, you don't need to specify anything in the options. But you are not allowed to write intermidiate results, and output primal values in the training.
+
+(3) Testing
+
+The testing is also performed in all machines in parallel.
+
+Execute (note that all path  should be absolute): 
+
+mpirun  --hostfile [MPI host file] -np [number of nodes] parallel-predict [Options] testing_set_direcoty model_file
+
+Example:
+    (3.1)
+    mpirun  --hostfile ~/.mpihost -np 8 parallel-predict test.dat.8 train.dat.8.model
+    
+    Output the test accuracy.
+    
+    (3.2)
+    mpirun  --hostfile ~/.mpihost -np 8 parallel-predict -p train.dat.8 test.dat.8 model.interm
+    
+    Output the test accuracy and primal value in each ADMM iteration.
+    
+    
+
+
+

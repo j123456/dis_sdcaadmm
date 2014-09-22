@@ -1,0 +1,7 @@
+This code is modified based on the code of
+Efficient Distributed Linear Classification Algorithms via the Alternating Direction Method of Multipliers.
+Caoxie Zhang, Honglak Lee, and Kang G. Shin
+
+The additional paramter
+-t
+-m
