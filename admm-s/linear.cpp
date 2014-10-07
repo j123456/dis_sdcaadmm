@@ -516,17 +516,21 @@ void solve_proximity_l1l2_svc(
 	const problem *prob, double *w, double * u,
 	double *alpha, double *z,  double eps, 
 	double Cp, double Cn, int solver_type,
-	int max_iter , const struct parameter * param, double frac)
+	int max_iter , const struct parameter * param, double frac, int out_iter)
 {
+
 	int l = prob->l;
 	int fl =  floor(frac*l);	
-	
+
 	int w_size = prob->n;
-	int i, s, iter = 0;
+	int i, s, iter = 0; int k = 0; int idd = 0;
 	double C, d, G;
 	double *QD = new double[fl];
 	//int max_iter = 1000;
 	int *index = new int[fl];
+
+	int *arrid = new int[l];
+
 	//double *alpha = new double[l];
 	schar *y = new schar[fl]; // This should be problematic if the number of class exceed 128
 	int active_size = fl;
@@ -548,6 +552,64 @@ void solve_proximity_l1l2_svc(
 	}
 	for(i=0; i<w_size; i++)
 		w[i] = z[i] - u[i];
+
+	int mod2 = out_iter%2;
+//	printf("hello1\n");
+	int idd_start = 0;
+	int full = 0;
+
+	if(out_iter == 0){
+		idd_start = 0;
+	}else{
+		idd_start = out_iter*ceil( param -> fraction * l);
+		if( idd_start + fl > l){
+			idd_start = l - fl;
+			full = 1;
+		}
+	}
+	//modify this block
+	for(k=0; k<fl; k++)
+	{
+	  if(full != 1){
+		idd = idd_start + k;
+	  }else{
+		if( mod2 == 0){		
+			idd = l - 1 - k;		
+		}else{
+			idd = k;
+		}
+	  }
+/*
+		if( mod2 == 0){		
+			idd = l - 1 - k;		
+		}else{
+			idd = k;
+		}
+*/
+		arrid[idd] = k;//save 
+
+		if(prob->y[idd] > 0)
+		{
+			y[k] = +1; 
+		}
+		else
+		{
+			y[k] = -1;
+		}
+		QD[k] = diag[GETI(k)]; // Actually can be cached for further improvement
+
+		feature_node *xi = prob->x[idd];
+		while (xi->index != -1)
+		{
+			QD[k] += (xi->value)*(xi->value);
+			w[xi->index-1]+= y[k]* (xi->value) * alpha[idd];
+			//assert(xi->index-1>=0 && xi->index-1<w_size);	 //Debug
+			xi++;
+		}
+		index[k] = idd;
+	}
+//	printf("hello2\n");
+/*
 	for(i=0; i<fl; i++)
 	{
 		if(prob->y[i] > 0)
@@ -571,7 +633,7 @@ void solve_proximity_l1l2_svc(
 		index[i] = i;
 	}
 
-	
+*/	
 	while (iter < max_iter)
 	{
 		PGmax_new = -INF;
@@ -587,7 +649,7 @@ void solve_proximity_l1l2_svc(
 		{
 			i = index[s];
 			G = 0;
-			schar yi = y[i];
+			schar yi = y[arrid[i]];
 
 			feature_node *xi = prob->x[i];
 			while(xi->index!= -1)
@@ -597,8 +659,8 @@ void solve_proximity_l1l2_svc(
 			}
 			G = G*yi-1;
 
-			C = upper_bound[GETI(i)];
-			G += alpha[i]*diag[GETI(i)];
+			C = upper_bound[GETI(arrid[i])];
+			G += alpha[i]*diag[GETI(arrid[i])];
 
 			PG = 0;
 			if (alpha[i] == 0)
@@ -635,7 +697,7 @@ void solve_proximity_l1l2_svc(
 			if(fabs(PG) > 1.0e-12)
 			{
 				double alpha_old = alpha[i];
-				alpha[i] = min(max(alpha[i] - G/QD[i], 0.0), C);
+				alpha[i] = min(max(alpha[i] - G/QD[arrid[i]], 0.0), C);
 				
 				d = (alpha[i] - alpha_old)*yi;
 				xi = prob->x[i];
@@ -681,6 +743,7 @@ void solve_proximity_l1l2_svc(
 	// delete [] alpha;
 	delete [] y;
 	delete [] index;
+	delete [] arrid;
 }
  	
 					

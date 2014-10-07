@@ -11,6 +11,7 @@
 
 using namespace std;
 
+extern double start_t1;
 extern time_t start_t;
 //#extern double total_time;
 void myfread(void *ptr, size_t size, size_t nmemb, FILE * stream);

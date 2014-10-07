@@ -105,7 +105,7 @@ void solve_proximity_l1l2_svc(
 	const problem *prob, double *w, double *u,  
 	double *alpha, double *z, double eps, 
 	double Cp, double Cn, int solver_type,
-	int max_iter, const struct parameter * param , double frac);
+	int max_iter, const struct parameter * param , double frac, int iter);
 	
 void solve_proximity_l2_svc_primal( 
 	const problem *prob, double *w, double * u,

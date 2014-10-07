@@ -15,6 +15,8 @@
 #include <sys/mman.h>
 
 time_t start_t;
+double start_t1;
+
 const char *data_format_table[] = {
 	"BINARY", "COMPRESSION", NULL
 };
@@ -511,6 +513,8 @@ void ADMM_L2R_solve (problem *prob, model * model_, double Cp, double Cn, int cl
 	
 	time_t startmisc_t, startrun_t;
 	double total_time=0.0;    
+	double total_time1=0.0;    
+
 	double total_misc=0.0, total_run=0.0;
 	// <-- Initialize intermediate result write
 	FILE *fp = NULL;
@@ -543,7 +547,7 @@ void ADMM_L2R_solve (problem *prob, model * model_, double Cp, double Cn, int cl
 			u[i] = u[i] + w[i]- z[i];
         	// Try to use special solver for the sub-problem
 		if (solver_type == L2R_L2LOSS_SVC_DUAL || solver_type == L2R_L1LOSS_SVC_DUAL)
-			solve_proximity_l1l2_svc(prob, w, u,  alpha, z, tolerance, Cp/rho, Cn/rho, solver_type, inner_max_iter, param, frac);
+			solve_proximity_l1l2_svc(prob, w, u,  alpha, z, tolerance, Cp/rho, Cn/rho, solver_type, inner_max_iter, param, frac, iter);
 		else if (solver_type == L2R_L2LOSS_SVC)
 			solve_proximity_l2_svc_primal(prob, w, u, z, tolerance, Cp/rho, Cn/rho, param);		
 		if (!param->inner_mute)
@@ -635,12 +639,13 @@ void ADMM_L2R_solve (problem *prob, model * model_, double Cp, double Cn, int cl
         	        // this should not be used for multiclass classification though
 		}		
 		total_time = difftime(time(NULL), start_t);	
-        
+        	total_time1 = (clock()-start_t1)/CLOCKS_PER_SEC;
+
 		if (rank==root)
 		// only master prints the output
 	        {		
 		#ifndef PRINT_POS_NEG
-                printf("iter %d totaltime %.5g runtime %.5g coortime %.5g primal residual %.5g primal eps %.5g dual residual %.5g dual eps %.5g ", iter, total_time, total_run, total_misc, primal_residual, eps_pri, dual_residual, eps_dual);
+                printf("iter %d totaltime %.5g cputime %f runtime %.5g coortime %.5g primal residual %.5g primal eps %.5g dual residual %.5g dual eps %.5g ", iter, total_time, total_time1, total_run, total_misc, primal_residual, eps_pri, dual_residual, eps_dual);
 	        #else
                 printf("iter %d time %.5g ", iter, total_time);
                 #endif
